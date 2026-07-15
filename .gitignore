@@ -1,0 +1,6 @@
+# Only the venv/conda management tooling and each environment's short
+# description are tracked here. The actual environments (venvs, conda envs)
+# are local-only: regenerable, machine-specific, and often huge (binaries,
+# CUDA libraries, etc.) - not meant to live in git.
+/*/*
+!/*/comment.txt
