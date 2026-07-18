@@ -276,7 +276,7 @@ if ($Name) {
 }
 else {
     Write-VenvList -Venvs $venvs
-    $choice = (Read-Host "Enter number or name to activate, 'new' to create, 'edit ' to edit a comment, 'i' for info (blank to cancel)").Trim()
+    $choice = (Read-Host "Enter number or name to activate, 'new' to create, 'edit ' to edit a comment, 'freeze' for requirements.txt, 'i' for info (blank to cancel)").Trim()
     if ([string]::IsNullOrWhiteSpace($choice)) {
         return
     }

@@ -95,7 +95,7 @@ if not "%~1"=="" (
 )
 
 call :listenvs
-set /p "choice=%COL_CYAN%Enter number or name to activate, 'new' to create, 'edit ' to edit a comment, 'i' for info (blank to cancel): %COL_RESET%"
+set /p "choice=%COL_CYAN%Enter number or name to activate, 'new' to create, 'edit ' to edit a comment, 'freeze' for requirements.txt, 'i' for info (blank to cancel): %COL_RESET%"
 
 :trimchoice
 rem set /p occasionally leaves a trailing space (seen with piped input);
