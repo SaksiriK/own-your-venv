@@ -7,11 +7,13 @@ this repository - for use directly inside a PowerShell session.
 Scans the folder this script lives in for immediate subfolders that are a
 plain Python venv (contain pyvenv.cfg). With no arguments, prints a numbered
 list and prompts for a selection - or "new" to create an environment, or
-"edit <name>" to edit an environment's comment.txt. With -Name only,
-activates that environment directly. With -Name plus trailing arguments,
-instead runs those arguments through that environment's python directly (no
-activation) and forwards its exit code - for invoking a shared environment
-from another script without needing your own per-project .venv.
+"edit <name>" to edit an environment's comment.txt, or "freeze <name>" to
+write that environment's requirements.txt (blank name freezes all of them).
+With -Name only, activates that environment directly. With -Name plus
+trailing arguments, instead runs those arguments through that environment's
+python directly (no activation) and forwards its exit code - for invoking a
+shared environment from another script without needing your own
+per-project .venv.
 
 Activation runs Scripts\Activate.ps1 directly in this session (sets
 $env:VIRTUAL_ENV, prepends $env:PATH, defines a global `deactivate`), so run
@@ -22,15 +24,18 @@ cmd.exe) can't make activation persist in the caller's session.
 
 .Parameter Name
 Folder name of the environment (e.g. "gis_env" or "yolov5_env_2"), or the
-literal "new" (create an environment) or "edit" (edit a comment.txt, target
-name taken from the first entry of -ScriptArgs, or prompted for). If Name is
-omitted entirely, the available environments are listed for interactive
-selection alongside the same "new"/"edit <name>" options.
+literal "new" (create an environment), "edit" (edit a comment.txt), or
+"freeze" (write requirements.txt) - the latter two take their target name
+from the first entry of -ScriptArgs, or prompt for it if omitted ("freeze"
+with no name given at all freezes every environment). If Name is omitted
+entirely, the available environments are listed for interactive selection
+alongside the same "new"/"edit <name>"/"freeze <name>" options.
 
 .Parameter ScriptArgs
 Optional command and arguments to run under Name's python, e.g. a script
 path and its arguments. If given, runs immediately instead of activating.
-When Name is "edit", only the first entry is used, as the target env name.
+When Name is "edit" or "freeze", only the first entry is used, as the
+target env name.
 
 .Example
 vnvmgr
@@ -48,6 +53,14 @@ Creates a new environment (same prompts as create-venv.ps1).
 .Example
 vnvmgr edit gis_env
 Prompts for a new one-line comment and overwrites gis_env's comment.txt.
+
+.Example
+vnvmgr freeze gis_env
+Writes gis_env\requirements.txt from that environment's installed packages.
+
+.Example
+vnvmgr freeze
+Writes requirements.txt for every environment found.
 
 .Example
 vnvmgr yolov5_env_2 myscript.py --input data.tif
@@ -118,6 +131,7 @@ function Write-VenvHelp {
     Write-Host "  vnvmgr <name> script.py [args]  run script.py under <name>'s python, no activation"
     Write-Host "  vnvmgr new                      create a new environment"
     Write-Host "  vnvmgr edit <name>              edit <name>'s comment.txt"
+    Write-Host "  vnvmgr freeze [name]            pip freeze > requirements.txt for one env, or all if no name"
     Write-Host ""
     Write-Host "From Python code, to run something under a shared env:"
     Write-Host "  import subprocess"
@@ -178,6 +192,49 @@ function Invoke-EditComment {
     Write-Host "Comment for '$($editTarget.Name)' updated." -ForegroundColor Green
 }
 
+function Invoke-FreezeOne {
+    param($EnvInfo)
+    $pythonExe = Get-PythonExe -EnvInfo $EnvInfo
+    if (-not (Test-Path $pythonExe)) {
+        Write-Host "'$($EnvInfo.Name)' has no Scripts\python.exe - skipping." -ForegroundColor Yellow
+        return
+    }
+    Write-Host "Freezing '$($EnvInfo.Name)'..." -ForegroundColor Cyan
+    & $pythonExe -m pip freeze | Out-File -FilePath (Join-Path $EnvInfo.FullName 'requirements.txt') -Encoding utf8
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  wrote requirements.txt" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  pip freeze failed (exit code $LASTEXITCODE)" -ForegroundColor Red
+    }
+}
+
+function Invoke-Freeze {
+    param([string]$FreezeName, $Venvs)
+    if (-not $FreezeName) {
+        Write-VenvList -Venvs $Venvs
+        $FreezeName = (Read-Host "Environment name or number to freeze (blank for all)").Trim()
+    }
+    if ([string]::IsNullOrWhiteSpace($FreezeName)) {
+        foreach ($v in $Venvs) {
+            Invoke-FreezeOne -EnvInfo $v
+        }
+        return
+    }
+    if ($FreezeName -match '^\d+$') {
+        $idx = [int]$FreezeName - 1
+        $freezeTarget = if ($idx -ge 0 -and $idx -lt $Venvs.Count) { $Venvs[$idx] } else { $null }
+    }
+    else {
+        $freezeTarget = Resolve-VenvByName -Candidate $FreezeName -Venvs $Venvs
+    }
+    if (-not $freezeTarget) {
+        Write-Host "No environment named '$FreezeName' found." -ForegroundColor Red
+        return
+    }
+    Invoke-FreezeOne -EnvInfo $freezeTarget
+}
+
 if ($Name -eq 'new') {
     Invoke-CreateNew
     return
@@ -188,6 +245,12 @@ $venvs = @(Get-VenvList)
 if ($Name -eq 'edit') {
     $editName = if ($ScriptArgs -and $ScriptArgs.Count -gt 0) { $ScriptArgs[0] } else { $null }
     Invoke-EditComment -EditName $editName -Venvs $venvs
+    return
+}
+
+if ($Name -eq 'freeze') {
+    $freezeName = if ($ScriptArgs -and $ScriptArgs.Count -gt 0) { $ScriptArgs[0] } else { $null }
+    Invoke-Freeze -FreezeName $freezeName -Venvs $venvs
     return
 }
 
@@ -228,6 +291,11 @@ else {
     if ($choice -eq 'edit' -or $choice -like 'edit *') {
         $editName = if ($choice -eq 'edit') { $null } else { $choice.Substring(5).Trim() }
         Invoke-EditComment -EditName $editName -Venvs $venvs
+        return
+    }
+    if ($choice -eq 'freeze' -or $choice -like 'freeze *') {
+        $freezeName = if ($choice -eq 'freeze') { $null } else { $choice.Substring(7).Trim() }
+        Invoke-Freeze -FreezeName $freezeName -Venvs $venvs
         return
     }
     if ($choice -match '^\d+$') {

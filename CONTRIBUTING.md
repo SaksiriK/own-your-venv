@@ -73,12 +73,13 @@ Activate first (`vnvmgr my_new_env`), then install as usual (`pip install
 file so the next person (including future you) knows what's expected in it:
 
 ```
-pip freeze > C:\own-your-venv\my_new_env\requirements.txt
+vnvmgr freeze my_new_env
 ```
 
-Don't install packages into a shared environment for a one-off need without
-recording it - anything else already pointed at that environment inherits
-the change too.
+(`vnvmgr freeze` with no name does every environment in this folder at
+once.) Don't install packages into a shared environment for a one-off need
+without recording it - anything else already pointed at that environment
+inherits the change too.
 
 ## 6. Running/executing code
 

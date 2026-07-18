@@ -8,11 +8,12 @@ rem                                  for invoking a shared env from another scri
 rem                                  without its own .venv.
 rem   vnvmgr new                   - create a new environment
 rem   vnvmgr edit <name>           - edit <name>'s comment.txt
+rem   vnvmgr freeze [name]         - pip freeze > requirements.txt for one env, or all if no name
 rem   vnvmgr, then "i"             - show this reference and the Python-code snippet
 rem
 rem Venvs (pyvenv.cfg) activate via their own Scripts\activate.bat.
-rem "new" and "edit" are reserved command words - an environment folder
-rem literally named "new" or "edit" would be shadowed by them.
+rem "new", "edit", and "freeze" are reserved command words - an environment
+rem folder literally named one of them would be shadowed by it.
 
 set "REPO=%~dp0"
 if "%REPO:~-1%"=="\" set "REPO=%REPO:~0,-1%"
@@ -40,6 +41,7 @@ set "COL_RESET=%ESC%[0m"
 
 if /i "%~1"=="new" goto :createnew
 if /i "%~1"=="edit" goto :editcomment_arg
+if /i "%~1"=="freeze" goto :freeze_arg
 
 if not "%~2"=="" goto :runmode
 
@@ -124,6 +126,14 @@ if /i "!choice:~0,5!"=="edit " (
     set "EDITNAME=!choice:~5!"
     goto :editcomment_carry
 )
+if /i "!choice!"=="freeze" (
+    endlocal
+    goto :freeze_needname
+)
+if /i "!choice:~0,7!"=="freeze " (
+    set "FREEZENAME=!choice:~7!"
+    goto :freeze_carry
+)
 
 echo(!choice!| findstr /r "^[0-9][0-9]*$" >nul
 if !errorlevel! equ 0 (
@@ -160,6 +170,11 @@ rem or %EDITNAME% would expand to its pre-block (empty) value instead.
 endlocal & set "EDITNAME=%EDITNAME%"
 goto :editcomment_withname
 
+:freeze_carry
+rem Same carry-over trick, same reason - see :editcomment_carry above.
+endlocal & set "FREEZENAME=%FREEZENAME%"
+goto :freeze_withname
+
 :activate
 rem Carry TARGET/TARGETNAME out of the setlocal scope so the activation's
 rem env changes land in the real caller session instead of being discarded.
@@ -195,6 +210,7 @@ echo   vnvmgr ^<name^>                   activate ^<name^> in this shell session
 echo   vnvmgr ^<name^> script.py [args]  run script.py under ^<name^>'s python, no activation
 echo   vnvmgr new                      create a new environment
 echo   vnvmgr edit ^<name^>              edit ^<name^>'s comment.txt
+echo   vnvmgr freeze [name]            pip freeze ^> requirements.txt for one env, or all if no name
 echo(
 echo From Python code, to run something under a shared env:
 echo   import subprocess
@@ -291,6 +307,105 @@ rem (inherited by the child process) instead of embedding it in the
 rem command line sidesteps that entirely.
 powershell -NoProfile -Command "Set-Content -NoNewline -Path '%REPO%\%EDITNAME%\comment.txt' -Value $env:NEWCOMMENT"
 echo %COL_GREEN%Comment for "%EDITNAME%" updated.%COL_RESET%
+exit /b 0
+
+:freeze_arg
+rem vnvmgr freeze <name> - name given directly as %~2
+if "%~2"=="" goto :freeze_needname
+set "FREEZENAME=%~2"
+goto :freeze_withname
+
+:freeze_needname
+rem Name not given yet - self-contained (own setlocal/discovery), same
+rem reasoning as :editcomment_needname above. Blank input here means
+rem "freeze everything" rather than cancel, unlike the edit prompt.
+setlocal enabledelayedexpansion
+set "count=0"
+for /d %%D in ("%REPO%\*") do (
+    if exist "%%D\pyvenv.cfg" (
+        set /a count+=1
+        set "venv!count!=%%~nxD"
+        set "venvpath!count!=%%D"
+        set "comment!count!="
+        if exist "%%D\comment.txt" set /p "comment!count!=" 0<"%%D\comment.txt"
+    )
+)
+if "%count%"=="0" (
+    echo No environments found under %REPO% ^(looked for subfolders containing pyvenv.cfg^).
+    endlocal
+    exit /b 1
+)
+echo %COL_CYAN%Environments in %REPO% :%COL_RESET%
+for /l %%i in (1,1,%count%) do call :print_one %%i
+set /p "freezename_in=%COL_CYAN%Environment name or number to freeze (blank for all): %COL_RESET%"
+
+:trim_freezename_in
+if "!freezename_in:~-1!"==" " (
+    set "freezename_in=!freezename_in:~0,-1!"
+    goto :trim_freezename_in
+)
+
+if "!freezename_in!"=="" (
+    rem Freeze everything, using the venv!i!/venvpath!i! arrays discovered
+    rem above directly, while still inside this same setlocal scope.
+    for /l %%i in (1,1,!count!) do call :freeze_one_by_index %%i
+    endlocal
+    exit /b 0
+)
+
+echo(!freezename_in!| findstr /r "^[0-9][0-9]*$" >nul
+if !errorlevel! equ 0 (
+    if !freezename_in! geq 1 if !freezename_in! leq %count% (
+        set "freezename_in=!venv%freezename_in%!"
+    )
+)
+
+endlocal & set "FREEZENAME=%freezename_in%"
+goto :freeze_withname
+
+:freeze_one_by_index
+rem Called only from within :freeze_needname's own setlocal scope, so
+rem delayed expansion of venv%1/venvpath%1 is safe here. No color codes -
+rem this runs inside a "for /l ... do call" loop, not a parenthesized
+rem block, so that specific corruption risk doesn't apply, but keeping it
+rem plain avoids having to re-reason about it later.
+if not exist "!venvpath%1!\Scripts\python.exe" (
+    echo "!venv%1!" has no Scripts\python.exe - skipping.
+    exit /b 0
+)
+echo Freezing "!venv%1!"...
+"!venvpath%1!\Scripts\python.exe" -m pip freeze > "!venvpath%1!\requirements.txt"
+if !errorlevel! equ 0 (
+    echo   wrote requirements.txt
+) else (
+    echo   pip freeze failed ^(exit code !errorlevel!^)
+)
+exit /b 0
+
+:freeze_withname
+if not defined FREEZENAME (
+    echo A name is required.
+    exit /b 1
+)
+if not exist "%REPO%\%FREEZENAME%\pyvenv.cfg" (
+    echo No environment named "%FREEZENAME%" found.
+    exit /b 1
+)
+if not exist "%REPO%\%FREEZENAME%\Scripts\python.exe" (
+    echo "%FREEZENAME%" has no Scripts\python.exe - is it a valid venv?
+    exit /b 1
+)
+echo Freezing "%FREEZENAME%"...
+"%REPO%\%FREEZENAME%\Scripts\python.exe" -m pip freeze > "%REPO%\%FREEZENAME%\requirements.txt"
+rem No color here - see the "Invalid selection" comment much earlier in
+rem this file for why a colored echo inside a parenthesized if/else block
+rem is unsafe (confirmed by bisection to corrupt cmd.exe's parsing enough
+rem to break later gotos elsewhere in the script).
+if %errorlevel% equ 0 (
+    echo   wrote requirements.txt
+) else (
+    echo   pip freeze failed ^(exit code %errorlevel%^)
+)
 exit /b 0
 
 :runmode

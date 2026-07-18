@@ -50,6 +50,7 @@ vnvmgr <name>                   activate <name> in the current shell session
 vnvmgr <name> script.py [args]  run script.py under <name>'s interpreter, no activation
 vnvmgr new                      create a new environment
 vnvmgr edit <name>              edit <name>'s comment.txt
+vnvmgr freeze [name]            pip freeze > requirements.txt for one env, or all if no name
 ```
 
 `vnvmgr <name>` activates in the current session: sets `VIRTUAL_ENV`,
@@ -61,8 +62,8 @@ without it needing its own `.venv`.
 
 Bare `vnvmgr` shows a plain numbered list and a prompt - type a number or
 name to activate, `new` to create an environment, `edit <name>` to edit a
-comment, or `i` to print the full command reference and the Python-code
-snippet above.
+comment, `freeze` to write `requirements.txt`, or `i` to print the full
+command reference and the Python-code snippet above.
 
 Any venv (anything with a `pyvenv.cfg`) is picked up automatically — just
 drop the environment's folder into `C:\own-your-venv`, no registration step.
@@ -123,10 +124,18 @@ C:\own-your-venv\<name>\Scripts\python.exe
 
 Environments here are shared across projects - `pip install <package>` while
 one is active affects every project using it, not just yours. Activate
-first (`vnvmgr <name>`), install deliberately, and update that environment's
-requirements file so the change is visible - don't install ad hoc for a
-single project's needs without knowing it affects everything else pointed
-at that environment.
+first (`vnvmgr <name>`), install deliberately, then:
+
+```
+vnvmgr freeze <name>
+```
+
+writes that environment's `requirements.txt` so the change is visible to
+anyone else pointed at it. Leave off the name (`vnvmgr freeze`) to do every
+environment at once - useful for refreshing all of them after a batch of
+updates. Don't install ad hoc for a single project's needs without
+recording it - anything else already pointed at that environment inherits
+the change too.
 
 ## Adding a new environment
 
