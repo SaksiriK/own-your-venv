@@ -26,6 +26,10 @@ Version to use (e.g. "3.11"), overriding the automatic latest-version
 pick. Without the py launcher installed, this must match the single
 Python version actually found - there's nothing else to switch to.
 
+.Parameter Comment
+One-line comment.txt description. If omitted, you'll be prompted; pass an
+empty string explicitly to skip the prompt with no comment recorded.
+
 .Example
 create-venv
 Uses the latest Python automatically, prompts for a name, creates the venv.
@@ -33,12 +37,18 @@ Uses the latest Python automatically, prompts for a name, creates the venv.
 .Example
 create-venv gis_env2 -PythonVersion 3.11
 Creates gis_env2 using Python 3.11 specifically, with no prompts.
+
+.Example
+create-venv example_env -Comment "starter environment"
+Fully non-interactive: no version, name, or comment prompts at all.
 #>
 param(
     [Parameter(Position = 0)]
     [string]$Name,
 
-    [string]$PythonVersion
+    [string]$PythonVersion,
+
+    [string]$Comment
 )
 
 $RepoRoot = $PSScriptRoot
@@ -144,9 +154,11 @@ if ($LASTEXITCODE -ne 0) {
     return
 }
 
-$comment = Read-Host "One-line description for comment.txt (blank to skip)"
-if (-not [string]::IsNullOrWhiteSpace($comment)) {
-    Set-Content -Path (Join-Path $targetPath 'comment.txt') -Value $comment -NoNewline
+if (-not $PSBoundParameters.ContainsKey('Comment')) {
+    $Comment = Read-Host "One-line description for comment.txt (blank to skip)"
+}
+if (-not [string]::IsNullOrWhiteSpace($Comment)) {
+    Set-Content -Path (Join-Path $targetPath 'comment.txt') -Value $Comment -NoNewline
 }
 
 Write-Host "Created '$Name' at $targetPath" -ForegroundColor Green

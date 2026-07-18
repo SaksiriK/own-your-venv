@@ -22,9 +22,16 @@ it the instant that process exits. The profile function makes `vnvmgr` in
 PowerShell call vnvmgr.ps1 directly instead, in your actual session, where
 activation actually persists.
 
+Finally, if this folder has no environments at all yet (a fresh clone),
+creates one starter venv (example_env) so there's something to see/activate
+immediately, without a separate manual `vnvmgr new` step. Skipped if any
+environment already exists, so re-running this on a machine you've already
+been using won't add clutter.
+
 .Example
 .\setup.ps1
-Adds this repo to PATH and sets up the PowerShell profile function.
+Adds this repo to PATH, sets up the PowerShell profile function, and
+creates a starter venv if this is a fresh clone with no environments yet.
 #>
 
 $RepoRoot = $PSScriptRoot
@@ -73,6 +80,20 @@ else {
     Write-Host "Added to `$PROFILE ($PROFILE):" -ForegroundColor Green
     Write-Host "  $profileLine" -ForegroundColor DarkGray
     Write-Host "  (open a new PowerShell window, or run: . `$PROFILE)" -ForegroundColor DarkGray
+}
+
+Write-Host ""
+
+# 3. A starter venv, so `vnvmgr` has something to show/activate right away
+# on a fresh clone - skip if any environment already exists here.
+$hasEnvironment = @(Get-ChildItem -Path $RepoRoot -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'pyvenv.cfg') }).Count -gt 0
+
+if ($hasEnvironment) {
+    Write-Host "Environment(s) already exist here - not creating a starter one." -ForegroundColor DarkGray
+}
+else {
+    & (Join-Path $RepoRoot 'create-venv.ps1') -Name 'example_env' -Comment 'starter environment - safe to delete'
 }
 
 Write-Host ""

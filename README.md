@@ -25,14 +25,20 @@ re-creating environments you already have, and just point at them instead.
 
 ```
 git clone https://github.com/SaksiriK/own-your-venv C:\own-your-venv
-C:\own-your-venv\setup.ps1
+C:\own-your-venv\setup.bat
 ```
 
-`setup.ps1` is a one-time step, safe to re-run - it adds this folder to
-your PATH (User scope, no admin rights needed) and adds a `vnvmgr` function
-to your PowerShell `$PROFILE` (see [Usage](#usage) below for why PowerShell
-needs that and cmd.exe doesn't). It auto-detects wherever you actually
-cloned to, so the folder above is just an example - clone anywhere you like.
+`setup.bat` (a thin wrapper so this works the same from cmd.exe or
+PowerShell - `.ps1` files don't run by name from cmd.exe) is a one-time
+step, safe to re-run. It:
+- adds this folder to your PATH (User scope, no admin rights needed)
+- adds a `vnvmgr` function to your PowerShell `$PROFILE` (see
+  [Usage](#usage) below for why PowerShell needs that and cmd.exe doesn't)
+- creates one starter venv, `example_env`, if this folder has no
+  environments yet, so `vnvmgr` has something to show/activate right away
+
+It auto-detects wherever you actually cloned to, so the folder above is
+just an example - clone anywhere you like.
 
 Open a new terminal window afterward and run `vnvmgr` - that's it.
 
