@@ -4,34 +4,35 @@ Create a new Python venv directly inside this repository folder, so vnvmgr
 picks it up immediately.
 
 .Description
-Always prompts for a Python version (blank accepts the latest/default) and
-a folder name, then runs `python -m venv` to create it right here alongside
-vnvmgr.ps1. Optionally records a one-line comment.txt description, same as
-the manual workflow in CONTRIBUTING.md.
+Uses the latest available Python automatically (no version prompt - just
+prints which one it picked) and prompts for a folder name, then runs
+`python -m venv` to create it right here alongside vnvmgr.ps1. Optionally
+records a one-line comment.txt description, same as the manual workflow
+in CONTRIBUTING.md.
 
-With the Python launcher for Windows (py) installed, every version it knows
-about is offered. Without it, only whatever single "python" is genuinely on
-PATH is available - and specifically NOT a currently-activated venv's own
-python.exe, even if one is active, so a new environment is always built
-from a stable base install rather than whatever happened to be active on
-someone's screen at the time.
+With the Python launcher for Windows (py) installed, "latest" means the
+newest version it knows about. Without it, it's whatever single "python"
+is genuinely on PATH - and specifically NOT a currently-activated venv's
+own python.exe, even if one is active, so a new environment is always
+built from a stable base install rather than whatever happened to be
+active on someone's screen at the time. Pass -PythonVersion to pin a
+specific version instead (useful for scripted/non-interactive use).
 
 .Parameter Name
 Folder name for the new environment. If omitted, you'll be prompted.
 
 .Parameter PythonVersion
-Version to use (e.g. "3.11"). If omitted, you'll be prompted; blank accepts
-the default/latest available version. Without the py launcher installed,
-this must match the single Python version actually found (or be left
-blank) - there's nothing else to switch to.
+Version to use (e.g. "3.11"), overriding the automatic latest-version
+pick. Without the py launcher installed, this must match the single
+Python version actually found - there's nothing else to switch to.
 
 .Example
 create-venv
-Prompts for a Python version and a name, then creates the venv.
+Uses the latest Python automatically, prompts for a name, creates the venv.
 
 .Example
 create-venv gis_env2 -PythonVersion 3.11
-Creates gis_env2 using Python 3.11 with no prompts.
+Creates gis_env2 using Python 3.11 specifically, with no prompts.
 #>
 param(
     [Parameter(Position = 0)]
@@ -69,16 +70,6 @@ function Get-PyLauncherVersions {
     return @($versions | Sort-Object Version -Unique -Descending)
 }
 
-function Write-PyVersionList {
-    param($Versions)
-    Write-Host "Installed Python versions (py launcher):" -ForegroundColor Cyan
-    foreach ($v in $Versions) {
-        $line = "  $($v.Version)"
-        if ($v.IsDefault) { $line += " (default)" }
-        Write-Host $line
-    }
-}
-
 function Get-BasePython {
     # Get-Command python only returns the first PATH match by default, which
     # is the currently-activated venv's own python.exe if one is active -
@@ -99,16 +90,13 @@ $pyVersions = Get-PyLauncherVersions
 
 if ($pyVersions -and $pyVersions.Count -gt 0) {
     if (-not $PythonVersion) {
-        Write-PyVersionList -Versions $pyVersions
         $default = ($pyVersions | Where-Object IsDefault | Select-Object -First 1)
         if (-not $default) { $default = $pyVersions[0] }
-        $PythonVersion = Read-Host "Python version to use (blank for $($default.Version), the latest)"
-        if ([string]::IsNullOrWhiteSpace($PythonVersion)) {
-            $PythonVersion = $default.Version
-        }
+        $PythonVersion = $default.Version
+        Write-Host "Using Python $PythonVersion (latest)." -ForegroundColor Cyan
     }
     if (-not ($pyVersions | Where-Object { $_.Version -eq $PythonVersion })) {
-        Write-Host "Python $PythonVersion isn't in the list above." -ForegroundColor Red
+        Write-Host "Python $PythonVersion isn't installed. Available: $($pyVersions.Version -join ', ')" -ForegroundColor Red
         return
     }
     $pythonCmd = { param($TargetPath) & py "-$PythonVersion" -m venv $TargetPath }
@@ -124,13 +112,9 @@ else {
     if ($versionOutput -match '(\d+\.\d+)\.\d+') {
         $detectedVersion = $matches[1]
     }
-    Write-Host "No py launcher installed - only one Python found: $versionOutput at $($basePython.Source)" -ForegroundColor Yellow
     if (-not $PythonVersion) {
-        $promptDefault = if ($detectedVersion) { $detectedVersion } else { 'the one shown above' }
-        $PythonVersion = Read-Host "Python version to use (blank for $promptDefault, the latest)"
-        if ([string]::IsNullOrWhiteSpace($PythonVersion)) {
-            $PythonVersion = $detectedVersion
-        }
+        Write-Host "Using $versionOutput at $($basePython.Source) (no py launcher installed, so this is the only one available)." -ForegroundColor Cyan
+        $PythonVersion = $detectedVersion
     }
     if ($detectedVersion -and $PythonVersion -ne $detectedVersion) {
         Write-Host "Only Python $detectedVersion is available - no py launcher installed to switch versions. Install the Python launcher for Windows (py) for multi-version support." -ForegroundColor Red

@@ -23,12 +23,13 @@ whatever you name the folder is the name you'll type into `vnvmgr` later.
 vnvmgr new
 ```
 
-(same as running `create-venv` directly). Prompts for a Python version
-(blank for the latest - with the `py` launcher installed, every version it
-knows about; without it, whichever single Python is actually on `PATH`)
-and a name, then creates the venv directly inside this folder. Nothing
-else needs registering - `vnvmgr` finds it automatically next time it
-scans this folder (it looks for `pyvenv.cfg`).
+(same as running `create-venv` directly). Picks the latest available
+Python automatically (prints which one it picked - with the `py` launcher
+installed, the newest version it knows about; without it, whichever
+single Python is actually on `PATH`) and prompts for a name, then creates
+the venv directly inside this folder. Nothing else needs registering -
+`vnvmgr` finds it automatically next time it scans this folder (it looks
+for `pyvenv.cfg`).
 
 ## 3. Describe it
 

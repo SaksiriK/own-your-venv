@@ -128,11 +128,12 @@ at that environment.
 vnvmgr new
 ```
 
-(equivalent to running `create-venv` directly.) Prompts for a Python
-version (if the `py` launcher knows about more than one - otherwise it just
-uses `python` from `PATH`) and a name, creates the venv directly inside
-this folder, and optionally records its `comment.txt` in the same step.
-`vnvmgr` picks it up next time it scans this folder - no registration step.
+(equivalent to running `create-venv` directly.) Picks the latest available
+Python automatically (prints which one), prompts for a name, creates the
+venv directly inside this folder, and optionally records its `comment.txt`
+in the same step. `vnvmgr` picks it up next time it scans this folder - no
+registration step. Pass `-PythonVersion` to pin a specific version instead
+(see `create-venv -?`).
 
 Non-interactively:
 
