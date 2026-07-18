@@ -17,6 +17,15 @@ rem literally named "new" or "edit" would be shadowed by them.
 set "REPO=%~dp0"
 if "%REPO:~-1%"=="\" set "REPO=%REPO:~0,-1%"
 
+rem One-time bootstrap: if setup.bat/setup.ps1 has never completed here,
+rem run it now. This only matters when vnvmgr is reachable at all without
+rem it - e.g. run as .\vnvmgr from inside this folder, before it's on
+rem PATH - since a bare "vnvmgr" typed elsewhere can't resolve to this
+rem script in the first place without setup having already added it to
+rem PATH. Single file-existence check, so this is effectively free on
+rem every other run once the marker exists.
+if not exist "%REPO%\.setup-complete" call "%~dp0setup.bat"
+
 rem ANSI color codes - supported by default in cmd.exe on Windows 10/11.
 rem Colors mirror vnvmgr.ps1's scheme: Cyan headers, Green success, Red
 rem errors, Yellow warnings, Gray for paths/hints. Harmless if a given

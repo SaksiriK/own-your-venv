@@ -22,11 +22,16 @@ it the instant that process exits. The profile function makes `vnvmgr` in
 PowerShell call vnvmgr.ps1 directly instead, in your actual session, where
 activation actually persists.
 
-Finally, if this folder has no environments at all yet (a fresh clone),
+Then, if this folder has no environments at all yet (a fresh clone),
 creates one starter venv (example_env) so there's something to see/activate
 immediately, without a separate manual `vnvmgr new` step. Skipped if any
 environment already exists, so re-running this on a machine you've already
 been using won't add clutter.
+
+Finally, writes a `.setup-complete` marker - vnvmgr.bat/.ps1 check for it
+and auto-run this script if it's missing, so even skipping this step
+entirely and just running `vnvmgr`/`.\vnvmgr.ps1` from inside this folder
+still bootstraps everything on first use.
 
 .Example
 .\setup.ps1
@@ -95,6 +100,8 @@ if ($hasEnvironment) {
 else {
     & (Join-Path $RepoRoot 'create-venv.ps1') -Name 'example_env' -Comment 'starter environment - safe to delete'
 }
+
+Set-Content -Path (Join-Path $RepoRoot '.setup-complete') -Value 'vnvmgr.bat/.ps1 check for this file to auto-run setup.bat on first use - safe to delete, it just re-runs setup next time.' -NoNewline
 
 Write-Host ""
 Write-Host "Setup complete. Open a new terminal window and run: vnvmgr" -ForegroundColor Cyan

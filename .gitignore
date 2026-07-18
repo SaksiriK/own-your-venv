@@ -4,3 +4,7 @@
 # git.
 /*/*
 !/*/comment.txt
+
+# Marker setup.ps1 writes so vnvmgr auto-bootstraps on first use - local
+# per-machine state, not something to ship.
+/.setup-complete

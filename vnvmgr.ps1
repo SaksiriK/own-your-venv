@@ -63,6 +63,17 @@ param(
 
 $RepoRoot = $PSScriptRoot
 
+# One-time bootstrap: if setup.ps1 has never completed here, run it now.
+# This only matters when vnvmgr.ps1 is reachable at all without it - e.g.
+# run as .\vnvmgr.ps1 from inside this folder, before the $PROFILE
+# function exists - since a bare "vnvmgr" typed elsewhere can't resolve
+# here in the first place without setup having already run. Single
+# file-existence check, so this is effectively free on every other run
+# once the marker exists.
+if (-not (Test-Path (Join-Path $RepoRoot '.setup-complete'))) {
+    & (Join-Path $RepoRoot 'setup.ps1')
+}
+
 function Get-VenvComment {
     param([string]$EnvPath)
     $commentFile = Join-Path $EnvPath 'comment.txt'
